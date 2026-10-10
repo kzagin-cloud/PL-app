@@ -1,5 +1,5 @@
 // オフラインでも開けるようにアプリ本体と暗号化データをキャッシュする
-const CACHE = 'pl-app-v1';
+const CACHE = 'pl-app-v3';
 const D3 = 'https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './data.enc.json', D3];
 
@@ -23,6 +23,16 @@ self.addEventListener('fetch', (event) => {
   // d3 はバージョン固定なのでキャッシュ優先
   if (url.href === D3) {
     event.respondWith(caches.match(D3).then((hit) => hit || fetch(req)));
+    return;
+  }
+  // Google Fonts は一度取れたら保存して、オフラインでも同じ書体で表示する
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }))
+    );
     return;
   }
   if (url.origin !== location.origin) return;
