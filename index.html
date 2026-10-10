@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PL ダッシュボード</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f5f7f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f161b" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PL">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  /* 1カラムのモバイル優先。上部に固定バー、下に既存ダッシュボード */
+  :root {
+    --font-anthropic-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+    --font-anthropic-serif: "Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", Georgia, serif;
+    --cds-font-size-caption: 12px; --cds-font-size-body: 14px; --cds-font-size-heading: 16px; --cds-font-size-title: 26px;
+    --cds-font-weight-medium: 600;
+    --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 12px; --cds-gap-lg: 20px; --cds-gap-xl: 32px;
+    --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 12px; --cds-pad-lg: 16px; --cds-pad-xl: 32px;
+    --cds-radius: 10px; --cds-dur-slow: .3s;
+
+    --color-bg: #f5f7f8; --color-panel: #ffffff; --color-fg: #17222b; --color-fg-muted: #5d6b77; --color-border-line: #dfe4e8;
+    --color-ok: #23864f; --color-warn: #a86a12; --color-bad: #c23a4b;
+    --s1: #1f7a8c; --s2: #d08c3c; --s3: #7b6fbf; --s4: #9aa7b1;
+    --cds-chart-grid: #e8ecef; --cds-chart-axis: #9aa6b0; --cds-chart-reference: #7d8a95; --cds-chart-status-critical: #d1495b; --cds-chart-muted: #c3ccd3;
+    --cds-surface-popover: #ffffff; --cds-border: #d5dce1; --cds-shadow-popover: 0 6px 20px rgba(23, 34, 43, .14); --cds-text-secondary: #5d6b77;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #0f161b; --color-panel: #172129; --color-fg: #e6edf2; --color-fg-muted: #93a3af; --color-border-line: #2a3741;
+      --color-ok: #5cc08a; --color-warn: #e0a64a; --color-bad: #ef6b7b;
+      --s1: #4fb3c6; --s2: #e3a35a; --s3: #a49ae0; --s4: #6f7f8b;
+      --cds-chart-grid: #22303a; --cds-chart-axis: #5b6b77; --cds-chart-reference: #7d8d99; --cds-chart-status-critical: #ef6b7b; --cds-chart-muted: #3a4853;
+      --cds-surface-popover: #1d2933; --cds-border: #34434e; --cds-shadow-popover: 0 6px 20px rgba(0, 0, 0, .45); --cds-text-secondary: #93a3af;
+      color-scheme: dark;
+    }
+  }
+  html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: 14px; -webkit-text-size-adjust: 100%; }
+  [hidden] { display: none !important; }
+  .dash-skeleton { background: var(--cds-chart-grid); border-radius: 6px; color: transparent !important; min-width: 3em; display: inline-block; }
+
+  .app-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+    background: var(--color-bg); border-bottom: 1px solid var(--color-border-line); }
+  .app-bar-title { font-weight: 600; font-size: 15px; }
+  .app-bar-sub { color: var(--color-fg-muted); font-size: 12px; }
+  .app-btn { appearance: none; font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--color-border-line); background: var(--color-panel); color: var(--color-fg); cursor: pointer; }
+  .app-btn:focus-visible, .lock input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  #dash-root { padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); max-width: 1280px; margin-inline: auto; }
+
+  @media (max-width: 480px) {
+    #dash-root .pl-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
+    #dash-root .pl-tile { padding: 10px 12px; }
+    #dash-root .pl-tile-value { font-size: 20px; }
+    #dash-root .pl-title { font-size: 22px; }
+  }
+  .lock { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; }
+  .lock-card { width: min(100%, 360px); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 16px; padding: 28px 24px; display: grid; gap: 14px; box-sizing: border-box; }
+  .lock-mark { width: 56px; height: 56px; border-radius: 14px; }
+  .lock h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 22px; margin: 0; }
+  .lock p { margin: 0; color: var(--color-fg-muted); font-size: 13px; line-height: 1.6; }
+  .lock label { font-size: 13px; color: var(--color-fg-muted); display: grid; gap: 6px; }
+  .lock input[type=password] { font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); }
+  .lock .check { display: flex; align-items: center; gap: 8px; color: var(--color-fg); }
+  .lock button { appearance: none; font: inherit; font-size: 16px; font-weight: 600; padding: 12px; border-radius: 10px; border: 0; background: var(--s1); color: #fff; cursor: pointer; }
+  .lock button:disabled { opacity: .6; }
+  .lock-err { color: var(--color-bad) !important; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<div class="lock" id="lock">
+  <form class="lock-card" id="lock-form" autocomplete="on">
+    <img class="lock-mark" src="icon-192.png" alt="">
+    <h1>PL マルチ店舗ダッシュボード</h1>
+    <p>データは暗号化されています。パスワードを入力して開いてください。</p>
+    <input type="text" name="username" value="pl-dashboard" autocomplete="username" hidden>
+    <label>パスワード<input type="password" id="pw" autocomplete="current-password" required></label>
+    <label class="check"><input type="checkbox" id="remember"> この端末で記憶する</label>
+    <button type="submit" id="unlock">開く</button>
+    <p class="lock-err" id="lock-err" role="alert"></p>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="app-bar">
+    <div><div class="app-bar-title">PL ダッシュボード</div><div class="app-bar-sub" id="app-period"></div></div>
+    <button class="app-btn" id="lock-btn" type="button">ロック</button>
+  </div>
+  <div id="dash-root">
+<style>
+  .pl { font-family: var(--font-anthropic-sans); display: grid; gap: var(--cds-gap-lg); padding-block: var(--cds-pad-sm) var(--cds-pad-xl); }
+  .pl-head { display: grid; gap: var(--cds-gap-xs); }
+  .pl-eyebrow { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); letter-spacing: .04em; }
+  .pl-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .pl-take { margin: 0; max-width: 62rem; line-height: 1.7; }
+  .pl .pl-take b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pl-tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); border-bottom: 1px solid var(--color-border-line); }
+  .pl-tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--color-fg-muted); font: inherit; padding: var(--cds-pad-sm) var(--cds-pad-md); cursor: pointer; margin-bottom: -1px; }
+  .pl-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); font-weight: 600; }
+  .pl-tab:focus-visible, .pl-chip:focus-visible, .pl-th-btn:focus-visible, .pl-select:focus-visible { outline: 2px solid var(--cds-chart-reference); outline-offset: 2px; }
+  .pl-page { display: grid; gap: var(--cds-gap-md); }
+  .pl-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: var(--cds-gap-md); }
+  .pl-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); align-content: start; }
+  .pl-tile-label { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pl-tile-value { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .pl-tile-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .pl-tile-sub b { font-weight: 600; }
+  .pl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--cds-gap-md); }
+  .pl-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); align-content: start; min-width: 0; }
+  .pl-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .pl-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin: 0; line-height: 1.6; }
+  .pl-chart { position: relative; min-width: 0; }
+  .pl-chart svg { display: block; overflow: visible; }
+  .pl-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; font-variant-numeric: tabular-nums; z-index: 2; }
+  .pl-tip-h { color: var(--cds-text-secondary); margin-bottom: 2px; }
+  .pl-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .pl-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .pl-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .pl-tick { width: 2px; height: 12px; display: inline-block; background: var(--color-fg-muted); }
+  .good { color: var(--color-ok); }
+  .bad { color: var(--color-bad); }
+  .pl-chips { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs); }
+  .pl-chip { appearance: none; font: inherit; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg-muted); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+  .pl-chip[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+  .pl-scroll { overflow: auto; max-height: 36rem; min-width: 0; }
+  .pl-table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .pl-table th, .pl-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-border-line); text-align: right; white-space: nowrap; }
+  .pl-table th:first-child, .pl-table td:first-child, .pl-table .l { text-align: left; }
+  .pl-table thead th { position: sticky; top: 0; background: var(--color-panel); color: var(--color-fg-muted); font-weight: 500; z-index: 1; }
+  .pl-th-btn { appearance: none; background: none; border: 0; font: inherit; color: inherit; cursor: pointer; padding: 0; }
+  .pl-table tr.tot td { font-weight: 600; }
+  .pl-table tr.neg td.p { color: var(--color-bad); }
+  .pl-bar { display: inline-block; height: 6px; border-radius: 3px; vertical-align: middle; margin-left: 6px; }
+  .pl-cat { color: var(--color-fg-muted); }
+  .pl-pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; margin-left: 6px; }
+  .pl-row { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; }
+  .pl-select { font: inherit; padding: 6px 10px; border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); max-width: 100%; }
+  .pl-memo { display: grid; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-body); }
+  .pl-memo div { display: flex; gap: var(--cds-gap-sm); }
+  .pl-memo dt { color: var(--color-fg-muted); min-width: 2.5rem; }
+  .pl-memo dd { margin: 0; }
+  .pl-list { margin: 0; padding-left: 1.2em; display: grid; gap: var(--cds-gap-xs); line-height: 1.6; }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  .pl-fail { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 120px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .pl-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+</style>
+
+<div class="pl">
+  <header class="pl-head" id="top">
+    <div class="pl-eyebrow">2026年9月期 ・ 8月／9月 月次実績 ・ 全28部門</div>
+    <h1 class="pl-title">PL マルチ店舗ダッシュボード</h1>
+    <p class="pl-take" id="takeaway">
+      9月の全社利益は <b data-source="company" data-field="9月" data-where="指標=当月利益" data-fmt="man">—</b>（利益率 <b data-source="ratios" data-field="9月" data-where="指標=利益率" data-fmt="pct">—</b>）で、8月から <b data-source="kpi" data-field="差額" data-where="指標=当月利益" data-fmt="sman" data-good="up">—</b>。
+      純売上高は8月比 <b data-source="kpi" data-field="増減率" data-where="指標=純売上高" data-fmt="spct" data-good="up">—</b>、客数は <b data-source="kpi" data-field="増減率" data-where="指標=客数" data-fmt="spct" data-good="up">—</b>。
+      9月に赤字だった店舗は <b id="loss-list" data-source="loss">—</b> です。
+    </p>
+  </header>
+
+  <nav class="pl-tabs" role="tablist" aria-label="ページ">
+    <button class="pl-tab" role="tab" id="tab-summary" data-page="summary" aria-selected="true">全社サマリー</button>
+    <button class="pl-tab" role="tab" id="tab-stores" data-page="stores" aria-selected="false">店舗比較</button>
+    <button class="pl-tab" role="tab" id="tab-detail" data-page="detail" aria-selected="false">店舗別PL</button>
+    <button class="pl-tab" role="tab" id="tab-cash" data-page="cash" aria-selected="false">キャッシュフロー・借入</button>
+  </nav>
+
+  <!-- 全社サマリー -->
+  <section class="pl-page" id="summary" role="tabpanel">
+    <div class="pl-tiles" id="kpi-tiles">
+      <div class="pl-tile">
+        <div class="pl-tile-label">純売上高 ・ 9月</div>
+        <div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=純売上高" data-fmt="man">—</div>
+        <div class="pl-tile-sub">8月比 <b data-source="kpi" data-field="差額" data-where="指標=純売上高" data-fmt="sman" data-good="up">—</b>（<span data-source="kpi" data-field="増減率" data-where="指標=純売上高" data-fmt="spct">—</span>）</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">粗利益 ・ 9月</div>
+        <div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=粗利益" data-fmt="man">—</div>
+        <div class="pl-tile-sub">粗利率 <b data-source="ratios" data-field="9月" data-where="指標=粗利率" data-fmt="pct">—</b>（8月 <span data-source="ratios" data-field="8月" data-where="指標=粗利率" data-fmt="pct">—</span>）</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">人件費 ・ 9月</div>
+        <div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=人件費" data-fmt="man">—</div>
+        <div class="pl-tile-sub">売上比 <b data-source="ratios" data-field="9月" data-where="指標=人件費率" data-fmt="pct">—</b>（8月 <span data-source="ratios" data-field="8月" data-where="指標=人件費率" data-fmt="pct">—</span>）</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">一般管理費 ・ 9月</div>
+        <div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=一般管理費" data-fmt="man">—</div>
+        <div class="pl-tile-sub">売上比 <b data-source="ratios" data-field="9月" data-where="指標=一般管理費率" data-fmt="pct">—</b>（8月 <span data-source="ratios" data-field="8月" data-where="指標=一般管理費率" data-fmt="pct">—</span>）</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">当月利益 ・ 9月</div>
+        <div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=当月利益" data-fmt="man">—</div>
+        <div class="pl-tile-sub">8月比 <b data-source="kpi" data-field="差額" data-where="指標=当月利益" data-fmt="sman" data-good="up">—</b> ・ 利益率 <span data-source="ratios" data-field="9月" data-where="指標=利益率" data-fmt="pct">—</span></div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">客数 ・ 9月</div>
+        <div class="pl-tile-value"><span data-source="company" data-field="9月" data-where="指標=客数" data-fmt="num">—</span><span class="pl-tile-sub"> 人</span></div>
+        <div class="pl-tile-sub">8月比 <b data-source="kpi" data-field="差額" data-where="指標=客数" data-fmt="snum" data-good="up">—</b> ・ 客単価 <span data-source="ratios" data-field="9月" data-where="指標=客単価" data-fmt="yen">—</span></div>
+      </div>
+    </div>
+
+    <div class="pl-grid">
+      <div class="pl-card" id="card-profit">
+        <h2>店舗別の利益（9月）</h2>
+        <p class="pl-note">利益の大きい順。細い縦線は8月の利益。本部・CK・FCを除く21店舗。</p>
+        <div class="pl-legend"><span><i class="pl-sw" id="sw-pos"></i>9月の利益</span><span><i class="pl-sw" id="sw-neg"></i>赤字</span><span><i class="pl-tick"></i>8月の利益</span></div>
+        <div class="pl-chart" id="chart-profit" data-source="stores"></div>
+      </div>
+      <div class="pl-grid" style="grid-template-columns: 1fr; align-content: start;">
+        <div class="pl-card" id="card-mix">
+          <h2>売上に占める費用と利益</h2>
+          <p class="pl-note">全社の純売上高を100%としたときの内訳。</p>
+          <div class="pl-chart" id="chart-mix" data-source="company"></div>
+          <div class="pl-legend" id="mix-legend"></div>
+        </div>
+        <div class="pl-card" id="card-notes">
+          <h2>読み方と注意点</h2>
+          <ul class="pl-list pl-note">
+            <li>比較はすべて<b>8月→9月</b>の前月比です。元PDFの「前年比」は人件費・一般管理費が数百〜千%台の増加になっており、前年データの範囲が今年と揃っていない可能性が高いため使っていません。</li>
+            <li>座銀さんプラザの8月客数は <b data-source="stores" data-field="客数8" data-where="部門=座銀さんプラザ" data-fmt="num">—</b>人（9月は <span data-source="stores" data-field="客数9" data-where="部門=座銀さんプラザ" data-fmt="num">—</span>人）で、入力漏れの可能性があります。</li>
+            <li>全28部門の合計は、PDFの全体ダッシュボードの売上・利益と一致しています。本部5部門は売上がほぼゼロのため、比率は表示していません。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 店舗比較 -->
+  <section class="pl-page" id="stores" role="tabpanel" hidden>
+    <div class="pl-card" id="card-table">
+      <div class="pl-row">
+        <h2>部門別の9月実績</h2>
+        <div class="pl-chips" id="cat-chips" role="group" aria-label="区分">
+          <button class="pl-chip" data-cat="店舗" aria-pressed="true">店舗</button>
+          <button class="pl-chip" data-cat="本部" aria-pressed="false">本部</button>
+          <button class="pl-chip" data-cat="CK・FC" aria-pressed="false">CK・FC</button>
+          <button class="pl-chip" data-cat="すべて" aria-pressed="false">すべて</button>
+        </div>
+      </div>
+      <p class="pl-note">金額は千円。列名を押すと並び替え、行を押すとその店舗のPLを開きます。FL比率＝（原価＋人件費）÷純売上高。</p>
+      <div class="pl-scroll">
+        <table class="pl-table" id="store-table" data-source="stores" data-row-key="部門">
+          <thead><tr>
+            <th data-field="部門"><button class="pl-th-btn" data-sort="部門">部門</button></th>
+            <th data-field="区分" class="l">区分</th>
+            <th data-field="売上9"><button class="pl-th-btn" data-sort="売上9">純売上高</button></th>
+            <th data-source="store_calc" data-field="売上前月比"><button class="pl-th-btn" data-sort="売上前月比">売上8月比</button></th>
+            <th data-source="store_calc" data-field="原価率"><button class="pl-th-btn" data-sort="原価率">原価率</button></th>
+            <th data-source="store_calc" data-field="人件費率"><button class="pl-th-btn" data-sort="人件費率">人件費率</button></th>
+            <th data-source="store_calc" data-field="FL比率"><button class="pl-th-btn" data-sort="FL比率">FL比率</button></th>
+            <th data-field="利益9"><button class="pl-th-btn" data-sort="利益9">利益</button></th>
+            <th data-source="store_calc" data-field="利益率"><button class="pl-th-btn" data-sort="利益率">利益率</button></th>
+            <th data-source="store_calc" data-field="利益差額"><button class="pl-th-btn" data-sort="利益差額">利益8月比</button></th>
+            <th data-field="客数9"><button class="pl-th-btn" data-sort="客数9">客数</button></th>
+            <th data-source="store_calc" data-field="客単価"><button class="pl-th-btn" data-sort="客単価">客単価</button></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 店舗別PL -->
+  <section class="pl-page" id="detail" role="tabpanel" hidden>
+    <div class="pl-row">
+      <label class="pl-note" for="store-select">部門を選ぶ</label>
+      <select class="pl-select" id="store-select" data-source="stores" aria-label="部門"></select>
+    </div>
+    <div class="pl-tiles" id="detail-tiles">
+      <div class="pl-tile"><div class="pl-tile-label">純売上高 ・ 9月</div><div class="pl-tile-value" data-source="stores" data-field="売上9" data-fmt="man" data-store>—</div><div class="pl-tile-sub">8月 <span data-source="stores" data-field="売上8" data-fmt="man" data-store>—</span></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">原価 ・ 9月</div><div class="pl-tile-value" data-source="stores" data-field="原価9" data-fmt="man" data-store>—</div><div class="pl-tile-sub">原価率 <b data-source="store_calc" data-field="原価率" data-fmt="pct" data-store>—</b></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">人件費 ・ 9月</div><div class="pl-tile-value" data-source="stores" data-field="人件費9" data-fmt="man" data-store>—</div><div class="pl-tile-sub">人件費率 <b data-source="store_calc" data-field="人件費率" data-fmt="pct" data-store>—</b></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">一般管理費 ・ 9月</div><div class="pl-tile-value" data-source="stores" data-field="販管費9" data-fmt="man" data-store>—</div><div class="pl-tile-sub">8月 <span data-source="stores" data-field="販管費8" data-fmt="man" data-store>—</span></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">利益 ・ 9月</div><div class="pl-tile-value" data-source="stores" data-field="利益9" data-fmt="man" data-good="up" data-store>—</div><div class="pl-tile-sub">8月比 <b data-source="store_calc" data-field="利益差額" data-fmt="sman" data-good="up" data-store>—</b></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">客数 ・ 9月</div><div class="pl-tile-value"><span data-source="stores" data-field="客数9" data-fmt="num" data-store>—</span><span class="pl-tile-sub"> 人</span></div><div class="pl-tile-sub">客単価 <span data-source="store_calc" data-field="客単価" data-fmt="yen" data-store>—</span></div></div>
+    </div>
+    <div class="pl-grid">
+      <div class="pl-card" id="card-pl" style="grid-column: 1 / -1;">
+        <h2 id="pl-heading">損益計算書（8月・9月）</h2>
+        <p class="pl-note">金額は円。売上比は9月の純売上高に対する割合。</p>
+        <div class="pl-scroll">
+          <table class="pl-table" id="pl-table" data-source="pl_lines" data-row-key="部門,科目">
+            <thead><tr>
+              <th data-field="科目">勘定科目</th>
+              <th data-field="区分" class="l">区分</th>
+              <th data-field="8月">8月</th>
+              <th data-field="9月">9月</th>
+              <th data-source="pl_calc" data-field="差額">差額</th>
+              <th data-source="pl_calc" data-field="売上比">売上比（9月）</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pl-card" id="card-memo">
+        <h2>備考・メモ</h2>
+        <dl class="pl-memo">
+          <div><dt>8月</dt><dd data-source="stores" data-field="備考8" data-fmt="text" data-store>—</dd></div>
+          <div><dt>9月</dt><dd data-source="stores" data-field="備考9" data-fmt="text" data-store>—</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- キャッシュフロー・借入 -->
+  <section class="pl-page" id="cash" role="tabpanel" hidden>
+    <div class="pl-tiles">
+      <div class="pl-tile"><div class="pl-tile-label">営業CF ・ 9月</div><div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=営業CF" data-fmt="man">—</div><div class="pl-tile-sub">8月比 <b data-source="kpi" data-field="差額" data-where="指標=営業CF" data-fmt="sman" data-good="up">—</b></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">投資CF ・ 9月</div><div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=投資CF" data-fmt="man">—</div><div class="pl-tile-sub">8月 <span data-source="company" data-field="8月" data-where="指標=投資CF" data-fmt="man">—</span></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">財務CF（借入返済） ・ 9月</div><div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=財務CF" data-fmt="man">—</div><div class="pl-tile-sub">うち利息 <span data-source="company" data-field="9月" data-where="指標=返済利息" data-fmt="man">—</span></div></div>
+      <div class="pl-tile"><div class="pl-tile-label">月次CF合計 ・ 9月</div><div class="pl-tile-value" data-source="company" data-field="9月" data-where="指標=月次CF" data-fmt="man">—</div><div class="pl-tile-sub">8月比 <b data-source="kpi" data-field="差額" data-where="指標=月次CF" data-fmt="sman" data-good="up">—</b></div></div>
+    </div>
+    <div class="pl-grid">
+      <div class="pl-card" id="card-wf">
+        <div class="pl-row">
+          <h2>キャッシュフローの積み上げ</h2>
+          <div class="pl-chips" id="cf-chips" role="group" aria-label="月">
+            <button class="pl-chip" data-m="8月" aria-pressed="false">8月</button>
+            <button class="pl-chip" data-m="9月" aria-pressed="true">9月</button>
+          </div>
+        </div>
+        <p class="pl-note">税引後利益から減価償却を戻し、税金・設備投資・借入返済を引いて月次CFになるまで。9月は租税公課（労働保険）と設備投資の差で8月より手元に残る額が減っています。</p>
+        <div class="pl-chart" id="chart-wf" data-source="company"></div>
+      </div>
+      <div class="pl-card" id="card-loans">
+        <h2>借入返済の明細（9月）</h2>
+        <p class="pl-note">残回数の少ない順。金額は円。残り9回以下は「まもなく完済」。</p>
+        <div class="pl-scroll">
+          <table class="pl-table" id="loan-table" data-source="loans" data-row-key="借入">
+            <thead><tr>
+              <th data-field="借入名">借入</th>
+              <th data-field="銀行" class="l">銀行</th>
+              <th data-field="月額返済">月額返済</th>
+              <th data-field="利息">利息</th>
+              <th data-field="元本">元本</th>
+              <th data-field="残回数">残回数</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="pl-note">合計：月額 <b data-source="loan_total" data-field="月額返済" data-row="0" data-fmt="yen">—</b>（利息 <span data-source="loan_total" data-field="利息" data-row="0" data-fmt="yen">—</span> ・ 元本 <span data-source="loan_total" data-field="元本" data-row="0" data-fmt="yen">—</span>）</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="text/plain" id="dash-code">
+  dash.calc('kpi', {
+    inputs: ['company'], title: '8月からの増減',
+    description: '各指標の9月の値から8月の値を引いた差額と、8月に対する増減率。',
+    fn: (company) => company.map((r) => ({ '指標': r['指標'], '差額': r['9月'] - r['8月'], '増減率': r['8月'] ? (r['9月'] - r['8月']) / Math.abs(r['8月']) : null })),
+  });
+  dash.calc('ratios', {
+    inputs: ['company'], title: '全社の売上比率と客単価',
+    description: '粗利益・原価・人件費・一般管理費・当月利益を純売上高で割った比率と、純売上高÷客数の客単価。',
+    fn: (company) => {
+      const g = (k) => company.find((r) => r['指標'] === k);
+      const s = g('純売上高');
+      return [['粗利率', '粗利益'], ['原価率', '原価'], ['人件費率', '人件費'], ['一般管理費率', '一般管理費'], ['利益率', '当月利益']]
+        .map(([n, k]) => ({ '指標': n, '8月': g(k)['8月'] / s['8月'], '9月': g(k)['9月'] / s['9月'] }))
+        .concat([{ '指標': '客単価', '8月': s['8月'] / g('客数')['8月'], '9月': s['9月'] / g('客数')['9月'] }]);
+    },
+  });
+  dash.calc('store_calc', {
+    inputs: ['stores'], title: '部門別の比率（9月）',
+    description: '部門ごとの原価率・人件費率・FL比率・利益率・客単価（9月）と、売上・利益の8月比。本部は売上がほぼないため比率なし。',
+    fn: (stores) => stores.map((r) => {
+      const s = r['売上9'];
+      const q = (v) => (r['区分'] === '本部' ? null : v / s);
+      return {
+        '部門': r['部門'], '原価率': q(r['原価9']), '人件費率': q(r['人件費9']), 'FL比率': q(r['原価9'] + r['人件費9']), '利益率': q(r['利益9']),
+        '客単価': r['客数9'] ? s / r['客数9'] : null,
+        '売上前月比': r['区分'] === '本部' ? null : (s - r['売上8']) / r['売上8'],
+        '利益差額': r['利益9'] - r['利益8'],
+      };
+    }),
+  });
+  dash.calc('loss', {
+    inputs: ['stores'], title: '9月の赤字店舗',
+    description: '9月の利益がマイナスだった店舗（本部・CK・FCを除く）。',
+    fn: (stores) => stores.filter((r) => r['区分'] === '店舗' && r['利益9'] < 0).map((r) => ({ '部門': r['部門'], '利益9': r['利益9'] })),
+  });
+  dash.calc('pl_calc', {
+    inputs: ['pl_lines', 'stores'], title: '勘定科目の増減と売上比',
+    description: '科目ごとの9月−8月の差額と、9月の金額÷その部門の9月純売上高。',
+    fn: (pl_lines, stores) => pl_lines.map((r) => {
+      const st = stores.find((x) => x['部門'] === r['部門']);
+      return { '部門': r['部門'], '科目': r['科目'], '差額': r['9月'] - r['8月'], '売上比': st && st['区分'] !== '本部' ? r['9月'] / st['売上9'] : null };
+    }),
+  });
+  dash.calc('loan_total', {
+    inputs: ['loans'], title: '借入返済の合計',
+    description: '9月の借入返済の月額・利息・元本の合計。',
+    fn: (loans) => [{ '月額返済': d3.sum(loans, (r) => r['月額返済']), '利息': d3.sum(loans, (r) => r['利息']), '元本': d3.sum(loans, (r) => r['元本']) }],
+  });
+
+  (function () {
+    const root = document.querySelector('.pl');
+    const comma = d3.format(',');
+    const man = (v) => {
+      const a = Math.abs(v), s = v < 0 ? '-' : '';
+      if (a >= 1e8) { const oku = Math.floor(a / 1e8), m = Math.round((a % 1e8) / 1e4); return s + oku + '億' + (m ? comma(m) + '万' : '') + '円'; }
+      if (a >= 1e4) return s + comma(Math.round(a / 1e4)) + '万円';
+      return s + comma(Math.round(a)) + '円';
+    };
+    const sign = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±');
+    const FMT = {
+      man,
+      sman: (v) => sign(v) + man(Math.abs(v)),
+      yen: (v) => comma(Math.round(v)) + '円',
+      num: (v) => comma(Math.round(v)),
+      snum: (v) => sign(v) + comma(Math.abs(Math.round(v))) + '人',
+      pct: (v) => (v * 100).toFixed(1) + '%',
+      spct: (v) => sign(v) + Math.abs(v * 100).toFixed(1) + '%',
+      text: (v) => (v === '' ? '記載なし' : v),
+    };
+    const sen = (v) => (v == null ? '—' : comma(Math.round(v / 1000)));
+    const pctOr = (v) => (v == null || !isFinite(v) ? '—' : (v * 100).toFixed(1) + '%');
+    const rowsOf = (id) => { const d = dash.data(id); return d.status === 'ok' && Array.isArray(d.data) ? d.data : null; };
+    const failed = (id) => ['error', 'connect', 'declined', 'missing'].includes(dash.data(id).status);
+    const cssVar = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+
+    let sortKey = '利益9', sortDir = -1;
+    let drawnOnce = false;
+
+    dash.setParams({ cat: dash.params().cat ?? '店舗', store: dash.params().store ?? '神虎駅ビル', cfm: dash.params().cfm ?? '9月' });
+
+    function fillMarks() {
+      const store = dash.params().store;
+      root.querySelectorAll('[data-store]').forEach((el) => { el.dataset.where = '部門=' + encodeURIComponent(store); });
+      root.querySelectorAll('[data-fmt]').forEach((el) => {
+        el.classList.remove('good', 'bad');
+        const rows = rowsOf(el.dataset.source);
+        if (!rows) { el.textContent = '—'; el.classList.toggle('dash-skeleton', !failed(el.dataset.source)); return; }
+        el.classList.remove('dash-skeleton');
+        let row;
+        if (el.dataset.row != null) row = rows[+el.dataset.row];
+        else {
+          const w = [...new URLSearchParams(el.dataset.where || '')];
+          row = rows.find((r) => w.every(([k, v]) => String(r[k]) === v));
+        }
+        const v = row ? row[el.dataset.field] : null;
+        if (v == null || (typeof v === 'number' && !isFinite(v))) { el.textContent = '—'; return; }
+        el.textContent = FMT[el.dataset.fmt](v);
+        if (el.dataset.good && typeof v === 'number' && v !== 0) el.classList.add((el.dataset.good === 'up' ? v > 0 : v < 0) ? 'good' : 'bad');
+      });
+      const loss = rowsOf('loss');
+      const ll = document.getElementById('loss-list');
+      ll.textContent = loss ? (loss.length ? loss.map((r) => r['部門'] + '（' + man(r['利益9']) + '）').join('・') : 'ありません') : '—';
+    }
+
+    function tooltip(box) {
+      let t = box.querySelector('.pl-tip');
+      if (!t) { t = document.createElement('div'); t.className = 'pl-tip'; t.hidden = true; box.appendChild(t); }
+      return {
+        show(ev, head, lines) {
+          t.replaceChildren();
+          const h = document.createElement('div'); h.className = 'pl-tip-h'; h.textContent = head; t.appendChild(h);
+          lines.forEach((l) => { const d = document.createElement('div'); d.textContent = l; t.appendChild(d); });
+          t.hidden = false;
+          const b = box.getBoundingClientRect();
+          let x = ev.clientX - b.left + 12, y = ev.clientY - b.top + 12;
+          if (x + t.offsetWidth > b.width) x = Math.max(0, ev.clientX - b.left - t.offsetWidth - 12);
+          t.style.left = x + 'px'; t.style.top = y + 'px';
+        },
+        hide() { t.hidden = true; },
+      };
+    }
+
+    function measure(svg, texts, size) {
+      const tmp = svg.append('text').attr('font-size', size).attr('visibility', 'hidden');
+      const w = d3.max(texts, (s) => { tmp.text(s); return tmp.node().getComputedTextLength(); }) || 0;
+      tmp.remove();
+      return w;
+    }
+
+    function failBox(el) { el.replaceChildren(); const d = document.createElement('div'); d.className = 'pl-fail'; d.textContent = 'Failed to load'; el.appendChild(d); }
+
+    function drawProfit() {
+      const el = document.getElementById('chart-profit');
+      document.getElementById('sw-pos').style.background = dash.colors[0];
+      document.getElementById('sw-neg').style.background = cssVar('--cds-chart-status-critical');
+      const rows0 = rowsOf('stores');
+      if (!rows0) { if (failed('stores')) failBox(el); else { el.replaceChildren(); el.classList.add('dash-skeleton'); el.style.minHeight = '560px'; } return; }
+      el.classList.remove('dash-skeleton');
+      const rows = rows0.filter((r) => r['区分'] === '店舗').sort((a, b) => b['利益9'] - a['利益9']);
+      const W = el.clientWidth; if (!W) return;
+      const rowH = 26, top = 24, H = top + rows.length * rowH + 4;
+      el.style.minHeight = H + 'px';
+      el.querySelectorAll('svg').forEach((n) => n.remove());
+      const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+      const fs = 12;
+      const labW = Math.min(measure(svg, rows.map((r) => r['部門']), fs) + 10, W * 0.38);
+      const valW = measure(svg, rows.map((r) => man(r['利益9'])), fs) + 8;
+      const lo = Math.min(0, d3.min(rows, (r) => Math.min(r['利益9'], r['利益8'])));
+      const hi = d3.max(rows, (r) => Math.max(r['利益9'], r['利益8']));
+      const x = d3.scaleLinear([lo, hi], [labW, W - valW]).nice();
+      const ticks = x.ticks(W < 480 ? 3 : 5);
+      svg.append('g').selectAll('line').data(ticks).join('line')
+        .attr('x1', (d) => x(d)).attr('x2', (d) => x(d)).attr('y1', top - 4).attr('y2', H)
+        .attr('stroke', d => d === 0 ? 'var(--cds-chart-axis)' : 'var(--cds-chart-grid)').attr('stroke-width', 1);
+      svg.append('g').selectAll('text').data(ticks).join('text')
+        .attr('x', (d) => x(d)).attr('y', 12).attr('text-anchor', 'middle').attr('font-size', 11)
+        .attr('fill', 'var(--color-fg-muted)').text((d) => (d === 0 ? '0' : comma(d / 1e4) + '万'));
+      const tip = tooltip(el);
+      const g = svg.append('g').selectAll('g').data(rows).join('g').attr('transform', (d, i) => `translate(0,${top + i * rowH})`);
+      g.append('rect').attr('x', 0).attr('width', W).attr('height', rowH).attr('fill', 'transparent');
+      g.append('text').attr('x', labW - 10).attr('y', rowH / 2 + 4).attr('text-anchor', 'end').attr('font-size', fs)
+        .attr('fill', 'var(--color-fg)').text((d) => d['部門']);
+      g.append('rect').attr('class', 'bar').attr('x', (d) => x(Math.min(0, d['利益9']))).attr('y', 6)
+        .attr('width', (d) => Math.max(1, Math.abs(x(d['利益9']) - x(0)))).attr('height', rowH - 12).attr('rx', 3)
+        .attr('fill', (d) => (d['利益9'] < 0 ? 'var(--cds-chart-status-critical)' : dash.colors[0]));
+      g.append('line').attr('x1', (d) => x(d['利益8'])).attr('x2', (d) => x(d['利益8'])).attr('y1', 3).attr('y2', rowH - 3)
+        .attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 2);
+      g.append('text').attr('x', W).attr('y', rowH / 2 + 4).attr('text-anchor', 'end').attr('font-size', fs)
+        .attr('fill', (d) => (d['利益9'] < 0 ? 'var(--color-bad)' : 'var(--color-fg)')).style('font-variant-numeric', 'tabular-nums')
+        .text((d) => man(d['利益9']));
+      g.style('cursor', 'pointer')
+        .on('mousemove', (ev, d) => {
+          g.selectAll('.bar').attr('opacity', (e) => (e === d ? 1 : 0.45));
+          tip.show(ev, d['部門'], ['9月 ' + FMT.yen(d['利益9']), '8月 ' + FMT.yen(d['利益8']), '差額 ' + sign(d['利益9'] - d['利益8']) + FMT.yen(Math.abs(d['利益9'] - d['利益8']))]);
+        })
+        .on('mouseleave', () => { g.selectAll('.bar').attr('opacity', 1); tip.hide(); })
+        .on('click', (ev, d) => { dash.setParams({ store: d['部門'] }); showPage('detail'); });
+    }
+
+    function drawMix() {
+      const el = document.getElementById('chart-mix');
+      const leg = document.getElementById('mix-legend');
+      const rows = rowsOf('company');
+      if (!rows) { if (failed('company')) failBox(el); else { el.replaceChildren(); el.classList.add('dash-skeleton'); el.style.minHeight = '110px'; } return; }
+      el.classList.remove('dash-skeleton');
+      const W = el.clientWidth; if (!W) return;
+      const parts = [['原価', dash.colors[1]], ['人件費', dash.colors[2]], ['一般管理費', dash.colors[3]], ['当月利益', dash.colors[0]]];
+      const g = (k) => rows.find((r) => r['指標'] === k);
+      const months = ['8月', '9月'];
+      const H = 110, labW = 36, barH = 30;
+      el.style.minHeight = H + 'px';
+      el.querySelectorAll('svg').forEach((n) => n.remove());
+      const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+      const x = d3.scaleLinear([0, 1], [labW, W]);
+      const tip = tooltip(el);
+      months.forEach((m, i) => {
+        const y = 8 + i * (barH + 20);
+        const sales = g('純売上高')[m];
+        svg.append('text').attr('x', 0).attr('y', y + barH / 2 + 4).attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text(m);
+        let acc = 0;
+        parts.forEach(([k, c]) => {
+          const v = g(k)[m] / sales, x0 = acc; acc += v;
+          svg.append('rect').attr('x', x(x0)).attr('y', y).attr('width', Math.max(0, x(acc) - x(x0) - 1.5)).attr('height', barH).attr('rx', 3).attr('fill', c)
+            .on('mousemove', (ev) => tip.show(ev, m + ' ・ ' + k, [man(g(k)[m]) + '（売上比 ' + FMT.pct(v) + '）']))
+            .on('mouseleave', () => tip.hide());
+          if (x(acc) - x(x0) > 44) svg.append('text').attr('x', (x(x0) + x(acc)) / 2).attr('y', y + barH / 2 + 4).attr('text-anchor', 'middle')
+            .attr('font-size', 11).attr('fill', 'var(--color-bg)').attr('pointer-events', 'none').text(FMT.pct(v));
+        });
+      });
+      leg.replaceChildren(...parts.map(([k, c]) => { const s = document.createElement('span'); const i = document.createElement('i'); i.className = 'pl-sw'; i.style.background = c; s.append(i, k); return s; }));
+    }
+
+    function drawStoreTable() {
+      const tb = document.querySelector('#store-table tbody');
+      const st = rowsOf('stores'), sc = rowsOf('store_calc');
+      const cat = dash.params().cat;
+      document.querySelectorAll('#cat-chips .pl-chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === cat)));
+      document.querySelectorAll('#store-table th').forEach((th) => {
+        const b = th.querySelector('[data-sort]');
+        th.setAttribute('aria-sort', b && b.dataset.sort === sortKey ? (sortDir > 0 ? 'ascending' : 'descending') : 'none');
+      });
+      if (!st || !sc) { tb.replaceChildren(); return; }
+      const calc = new Map(sc.map((r) => [r['部門'], r]));
+      const rows = st.filter((r) => cat === 'すべて' || r['区分'] === cat).map((r) => ({ ...r, ...calc.get(r['部門']) }));
+      rows.sort((a, b) => {
+        const va = a[sortKey], vb = b[sortKey];
+        if (va == null) return 1; if (vb == null) return -1;
+        return (typeof va === 'string' ? va.localeCompare(vb, 'ja') : va - vb) * sortDir;
+      });
+      const maxP = d3.max(rows, (r) => Math.abs(r['利益9'])) || 1;
+      tb.replaceChildren(...rows.map((r) => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        if (r['利益9'] < 0) tr.className = 'neg';
+        const cells = [r['部門'], r['区分'], sen(r['売上9']), r['売上前月比'] == null ? '—' : FMT.spct(r['売上前月比']), pctOr(r['原価率']), pctOr(r['人件費率']), pctOr(r['FL比率']), sen(r['利益9']), pctOr(r['利益率']), (r['利益差額'] >= 0 ? '+' : '−') + sen(Math.abs(r['利益差額'])), r['客数9'] ? comma(r['客数9']) : '—', r['客単価'] ? comma(Math.round(r['客単価'])) : '—'];
+        cells.forEach((c, i) => {
+          const td = document.createElement('td'); td.textContent = c;
+          if (i === 1) td.className = 'l pl-cat';
+          if (i === 7) {
+            td.className = 'p';
+            const bar = document.createElement('span'); bar.className = 'pl-bar';
+            bar.style.width = Math.round(36 * Math.abs(r['利益9']) / maxP) + 'px';
+            bar.style.background = r['利益9'] < 0 ? 'var(--cds-chart-status-critical)' : dash.colors[0];
+            td.appendChild(bar);
+          }
+          if (i === 3 && r['売上前月比'] != null) td.className = r['売上前月比'] >= 0 ? 'good' : 'bad';
+          if (i === 9) td.className = r['利益差額'] >= 0 ? 'good' : 'bad';
+          tr.appendChild(td);
+        });
+        tr.addEventListener('click', () => { dash.setParams({ store: r['部門'] }); showPage('detail'); });
+        return tr;
+      }));
+    }
+
+    function drawDetail() {
+      const sel = document.getElementById('store-select');
+      const st = rowsOf('stores');
+      const store = dash.params().store;
+      if (st && sel.options.length !== st.length) {
+        const groups = d3.groups(st, (r) => r['区分']);
+        sel.replaceChildren(...groups.map(([k, rs]) => { const og = document.createElement('optgroup'); og.label = k; rs.forEach((r) => og.appendChild(new Option(r['部門'], r['部門']))); return og; }));
+      }
+      sel.value = store;
+      document.getElementById('pl-heading').textContent = store + ' の損益計算書（8月・9月）';
+      const tb = document.querySelector('#pl-table tbody');
+      const pl = rowsOf('pl_lines'), pc = rowsOf('pl_calc');
+      if (!pl || !pc) { tb.replaceChildren(); return; }
+      const calc = new Map(pc.filter((r) => r['部門'] === store).map((r) => [r['科目'], r]));
+      const order = ['売上', '原価', '粗利益', '人件費', '一般管理費'];
+      const rows = pl.filter((r) => r['部門'] === store)
+        .map((r, i) => ({ ...r, i, tot: /合計$|^純売上高$|^粗利益$/.test(r['科目']) }))
+        .sort((a, b) => order.indexOf(a['区分']) - order.indexOf(b['区分']) || (a.tot - b.tot) || a.i - b.i);
+      tb.replaceChildren(...rows.map((r) => {
+        const tr = document.createElement('tr');
+        tr.dataset.key = encodeURIComponent(r['部門']) + ',' + encodeURIComponent(r['科目']);
+        if (r.tot) tr.className = 'tot';
+        const c = calc.get(r['科目']) || {};
+        const isCost = r['区分'] !== '売上' && r['区分'] !== '粗利益';
+        [r['科目'], r['区分'], comma(r['8月']), comma(r['9月']), (c['差額'] > 0 ? '+' : c['差額'] < 0 ? '−' : '±') + comma(Math.abs(c['差額'] || 0)), pctOr(c['売上比'])].forEach((v, i) => {
+          const td = document.createElement('td'); td.textContent = v;
+          if (i === 1) td.className = 'l pl-cat';
+          if (i === 4 && c['差額']) td.className = (isCost ? c['差額'] < 0 : c['差額'] > 0) ? 'good' : 'bad';
+          tr.appendChild(td);
+        });
+        return tr;
+      }));
+    }
+
+    function drawWaterfall() {
+      const el = document.getElementById('chart-wf');
+      const rows = rowsOf('company');
+      const m = dash.params().cfm;
+      document.querySelectorAll('#cf-chips .pl-chip').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+      if (!rows) { if (failed('company')) failBox(el); else { el.replaceChildren(); el.classList.add('dash-skeleton'); el.style.minHeight = '260px'; } return; }
+      el.classList.remove('dash-skeleton');
+      const W = el.clientWidth; if (!W) return;
+      const g = (k) => rows.find((r) => r['指標'] === k)[m];
+      const steps = [['税引後利益', g('税引後利益'), 'start'], ['＋減価償却', g('減価償却')], ['－法人税・税金', g('法人税・税金')], ['－租税公課', g('租税公課')], ['営業CF', g('営業CF'), 'total'], ['－設備投資', g('設備投資')], ['－借入返済（財務CF）', g('財務CF')], ['月次CF', g('月次CF'), 'total']];
+      let cum = 0;
+      const bars = steps.map(([name, v, kind]) => {
+        if (kind) { cum = v; return { name, v, a: 0, b: v, kind }; }
+        const a = cum; cum += v; return { name, v, a, b: cum };
+      });
+      const rowH = 30, top = 22, H = top + bars.length * rowH;
+      el.style.minHeight = H + 'px';
+      el.querySelectorAll('svg').forEach((n) => n.remove());
+      const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+      const labW = measure(svg, bars.map((d) => d.name), 12) + 10;
+      const valW = measure(svg, bars.map((d) => (d.kind ? '' : sign(d.v)) + man(Math.abs(d.v))), 12) + 10;
+      const x = d3.scaleLinear([Math.min(0, d3.min(bars, (d) => Math.min(d.a, d.b))), d3.max(bars, (d) => Math.max(d.a, d.b))], [labW, W - valW]).nice();
+      const ticks = x.ticks(W < 480 ? 3 : 5);
+      svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', (d) => x(d)).attr('x2', (d) => x(d)).attr('y1', top - 4).attr('y2', H)
+        .attr('stroke', (d) => (d === 0 ? 'var(--cds-chart-axis)' : 'var(--cds-chart-grid)'));
+      svg.append('g').selectAll('text').data(ticks).join('text').attr('x', (d) => x(d)).attr('y', 12).attr('text-anchor', 'middle').attr('font-size', 11)
+        .attr('fill', 'var(--color-fg-muted)').text((d) => (d === 0 ? '0' : comma(d / 1e4) + '万'));
+      const gg = svg.append('g').selectAll('g').data(bars).join('g').attr('transform', (d, i) => `translate(0,${top + i * rowH})`);
+      gg.append('text').attr('x', labW - 10).attr('y', rowH / 2 + 4).attr('text-anchor', 'end').attr('font-size', 12)
+        .attr('fill', (d) => (d.kind ? 'var(--color-fg)' : 'var(--color-fg-muted)')).attr('font-weight', (d) => (d.kind === 'total' ? 600 : 400)).text((d) => d.name);
+      gg.append('rect').attr('x', (d) => x(Math.min(d.a, d.b))).attr('y', 7).attr('height', rowH - 14).attr('rx', 3)
+        .attr('width', (d) => Math.max(d.v === 0 ? 0 : 2, Math.abs(x(d.b) - x(d.a))))
+        .attr('fill', (d) => (d.kind ? dash.colors[0] : d.v < 0 ? 'var(--cds-chart-status-critical)' : dash.colors[1]));
+      gg.filter((d, i) => i < bars.length - 1).append('line').attr('x1', (d) => x(d.b)).attr('x2', (d) => x(d.b)).attr('y1', rowH - 7).attr('y2', rowH + 7)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '2 2');
+      gg.append('text').attr('x', W).attr('y', rowH / 2 + 4).attr('text-anchor', 'end').attr('font-size', 12).style('font-variant-numeric', 'tabular-nums')
+        .attr('fill', (d) => (!d.kind && d.v < 0 ? 'var(--color-bad)' : 'var(--color-fg)')).attr('font-weight', (d) => (d.kind === 'total' ? 600 : 400))
+        .text((d) => (d.kind ? man(d.v) : d.v === 0 ? '0円' : sign(d.v) + man(Math.abs(d.v))));
+    }
+
+    function drawLoans() {
+      const tb = document.querySelector('#loan-table tbody');
+      const rows0 = rowsOf('loans');
+      if (!rows0) { tb.replaceChildren(); return; }
+      const rows = [...rows0].sort((a, b) => a['残回数'] - b['残回数'] || b['月額返済'] - a['月額返済']);
+      const maxR = d3.max(rows, (r) => r['残回数']) || 1;
+      tb.replaceChildren(...rows.map((r) => {
+        const tr = document.createElement('tr');
+        tr.dataset.key = r['借入'];
+        [r['借入名'], r['銀行'], comma(r['月額返済']), comma(r['利息']), comma(r['元本']), r['残回数'] + '回'].forEach((v, i) => {
+          const td = document.createElement('td'); td.textContent = v;
+          if (i === 1) td.className = 'l pl-cat';
+          if (i === 0 && r['残回数'] <= 9) { const p = document.createElement('span'); p.className = 'pl-pill good'; p.textContent = r['残回数'] === 0 ? '完済' : 'まもなく完済'; td.appendChild(p); }
+          if (i === 5) { const bar = document.createElement('span'); bar.className = 'pl-bar'; bar.style.width = Math.max(2, Math.round(48 * r['残回数'] / maxR)) + 'px'; bar.style.background = dash.colors[1]; td.appendChild(bar); }
+          tr.appendChild(td);
+        });
+        return tr;
+      }));
+    }
+
+    let page = 'summary';
+    function showPage(id) {
+      page = id;
+      root.querySelectorAll('.pl-page').forEach((s) => { s.hidden = s.id !== id; });
+      root.querySelectorAll('.pl-tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.page === id)));
+      dash.setLink(id);
+      draw();
+    }
+
+    function draw() {
+      fillMarks();
+      if (page === 'summary') { drawProfit(); drawMix(); }
+      if (page === 'stores') drawStoreTable();
+      if (page === 'detail') drawDetail();
+      if (page === 'cash') { drawWaterfall(); drawLoans(); }
+    }
+
+    root.querySelectorAll('.pl-tab').forEach((t) => t.addEventListener('click', () => showPage(t.dataset.page)));
+    document.querySelectorAll('#cat-chips .pl-chip').forEach((b) => b.addEventListener('click', () => dash.setParams({ cat: b.dataset.cat })));
+    document.querySelectorAll('#cf-chips .pl-chip').forEach((b) => b.addEventListener('click', () => dash.setParams({ cfm: b.dataset.m })));
+    document.getElementById('store-select').addEventListener('change', (e) => dash.setParams({ store: e.target.value }));
+    document.querySelectorAll('#store-table [data-sort]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.sort;
+      if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === '部門' ? 1 : -1; }
+      drawStoreTable();
+    }));
+
+    dash.onData(() => {
+      draw();
+      if (!drawnOnce && rowsOf('stores')) {
+        drawnOnce = true;
+        const named = location.hash.slice(1);
+        if (['summary', 'stores', 'detail', 'cash'].includes(named) && named !== page) showPage(named);
+      }
+    });
+  })();
+</script>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" crossorigin="anonymous"></script>
+<script>
+(function () {
+  const KEY_STORE = 'pl-dashboard-key';
+  const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+
+  async function deriveKey(pw, salt, iter) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+  }
+  async function decrypt(enc, key) {
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(enc.iv) }, key, unb64(enc.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+  function store(fn) { try { return fn(); } catch (e) { return null; } }
+
+  // ダッシュボード用の最小ランタイム（データ・計算・フィルタ・再描画）
+  function makeDash(datasets) {
+    const data = { ...datasets };
+    const listeners = [];
+    let params = {};
+    let timer = 0;
+    const emit = () => listeners.forEach((fn) => fn());
+    const later = () => { clearTimeout(timer); timer = setTimeout(emit, 120); };
+    addEventListener('resize', later);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', later);
+    return {
+      colors: ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'],
+      data: (id) => (id in data ? { status: 'ok', data: data[id], columns: Object.keys((data[id] || [])[0] || {}), refreshing: false, meta: [] } : { status: 'missing', data: [], meta: [] }),
+      calc: (id, { inputs, fn }) => { data[id] = fn(...inputs.map((i) => data[i] || [])); },
+      loader: () => {},
+      params: () => ({ ...params }),
+      setParams: (p) => { params = { ...params, ...p }; emit(); },
+      resetParams: () => { params = {}; emit(); },
+      onData: (fn) => { listeners.push(fn); fn(); },
+      setLink: (id) => { try { history.replaceState(null, '', '#' + id); } catch (e) {} },
+      refresh: () => {},
+    };
+  }
+
+  function start(payload) {
+    document.getElementById('lock').hidden = true;
+    document.getElementById('app').hidden = false;
+    document.getElementById('app-period').textContent = payload.meta.period + ' ・ ' + payload.meta.updated + ' 更新';
+    const dash = makeDash(payload.datasets);
+    const code = document.getElementById('dash-code').textContent;
+    new Function('dash', code)(dash);
+  }
+
+  async function boot() {
+    const form = document.getElementById('lock-form');
+    const err = document.getElementById('lock-err');
+    const btn = document.getElementById('unlock');
+    let enc;
+    try {
+      enc = await (await fetch('data.enc.json', { cache: 'no-cache' })).json();
+    } catch (e) {
+      err.textContent = 'データを読み込めませんでした。通信状態を確認して開き直してください。';
+      btn.disabled = true;
+      return;
+    }
+    const saved = store(() => JSON.parse(localStorage.getItem(KEY_STORE)));
+    if (saved && saved.salt === enc.salt) {
+      try {
+        const key = await crypto.subtle.importKey('raw', unb64(saved.key), 'AES-GCM', false, ['decrypt']);
+        start(await decrypt(enc, key));
+        return;
+      } catch (e) { store(() => localStorage.removeItem(KEY_STORE)); }
+    }
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      err.textContent = '';
+      btn.disabled = true; btn.textContent = '確認しています…';
+      try {
+        const key = await deriveKey(document.getElementById('pw').value, unb64(enc.salt), enc.iter);
+        const payload = await decrypt(enc, key);
+        if (document.getElementById('remember').checked) {
+          const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+          store(() => localStorage.setItem(KEY_STORE, JSON.stringify({ salt: enc.salt, key: b64(raw) })));
+        }
+        start(payload);
+      } catch (e) {
+        err.textContent = 'パスワードが違います。';
+        btn.disabled = false; btn.textContent = '開く';
+      }
+    });
+  }
+
+  document.getElementById('lock-btn').addEventListener('click', () => {
+    store(() => localStorage.removeItem(KEY_STORE));
+    location.replace(location.pathname);
+  });
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  boot();
+})();
+</script>
+</body>
+</html>
