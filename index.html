@@ -841,6 +841,11 @@
       try {
         const key = await deriveKey(document.getElementById('pw').value, unb64(enc.salt), enc.iter);
         const payload = await decrypt(enc, key);
+        if (!payload || !payload.datasets || !payload.meta) {
+          err.textContent = 'パスワードは合っていますが、データの中身が正しくありません。暗号化ツールで「data.json」を選んで作り直してください。';
+          btn.disabled = false; btn.textContent = '開く';
+          return;
+        }
         if (document.getElementById('remember').checked) {
           const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
           store(() => localStorage.setItem(KEY_STORE, JSON.stringify({ salt: enc.salt, key: b64(raw) })));
